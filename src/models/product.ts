@@ -5,6 +5,7 @@ interface IProduct extends Document{
     name:string;
     description:string;
     price:number;
+    stock:number;
     category:mongoose.Types.ObjectId;
     images:string[];
     isActive:boolean;
@@ -30,17 +31,20 @@ const productSchema= new mongoose.Schema<IProduct>({
         required:true,
         min:0
     },
+    stock:{
+        type:Number,
+        required:true,
+        min:0
+    },
     category:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Category',
         required:true
     },
-    images:[{
-        image:{
-            type:String,
+    images:{
+            type:[String],
             required:true
-        }}
-    ],
+    },
     isActive:{
         type:Boolean,
         default:true
@@ -53,8 +57,17 @@ const productSchema= new mongoose.Schema<IProduct>({
     ratingsCount:{
         type:Number,
         min:0,
+        max:5,
         default:0
     }
 },{
     timestamps:true
 })
+
+productSchema.index({name:"text"})
+productSchema.index({category:1})
+productSchema.index({price:1})
+productSchema.index({ratingsAverage:-1})
+productSchema.index({category:1, price:1})
+
+export const ProductModel=mongoose.model<IProduct>('Product',productSchema)
