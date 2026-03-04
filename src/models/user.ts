@@ -1,6 +1,6 @@
-import {Document} from 'mongoose'
+import {Document } from 'mongoose'
 import mongoose from 'mongoose';
-import { timeStamp } from 'node:console';
+import bcrypt from 'bcryptjs'
 
 export type UserRole= "user" | "admin"
 
@@ -42,5 +42,14 @@ const userSchema = new mongoose.Schema<IUser>({
 )
 
 userSchema.index({email:1},{unique:true})
+
+userSchema.pre('save',async function (this:IUser) {
+    let user=this
+    if(this.isModified("password")){
+       user.password=await bcrypt.hash(this.password,10)
+    }
+    
+})
+
 
 export const UserModel= mongoose.model<IUser>('User',userSchema)
