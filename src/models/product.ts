@@ -9,8 +9,10 @@ interface IProduct extends Document{
     category:mongoose.Types.ObjectId;
     images:string[];
     isActive:boolean;
+    reviews:mongoose.Types.ObjectId[];
     ratingsAverage:number;
     ratingsCount:number;
+    createdBy:mongoose.Types.ObjectId
     createdAt:Date;
     updatedAt:Date
 }
@@ -49,6 +51,11 @@ const productSchema= new mongoose.Schema<IProduct>({
         type:Boolean,
         default:true
     },
+    reviews:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Review',
+        required:true,
+    }],
     ratingsAverage:{
         type:Number,
         min:0,
@@ -59,6 +66,11 @@ const productSchema= new mongoose.Schema<IProduct>({
         min:0,
         max:5,
         default:0
+    },
+    createdBy:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'User',
+        required:true
     }
 },{
     timestamps:true
