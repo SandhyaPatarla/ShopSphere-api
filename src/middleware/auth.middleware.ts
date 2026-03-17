@@ -5,7 +5,7 @@ import { UserModel } from "../models/user";
 dotenv.config()
 
 interface JwtPayload{
-    _id:string
+    id:string
 }
 
 const auth=async (req:Request,res:Response,next:NextFunction)=>{
@@ -17,7 +17,8 @@ const auth=async (req:Request,res:Response,next:NextFunction)=>{
     }
     const bearerToken= authHeader.replace("Bearer ","")
     const decoded= jwt.verify(bearerToken,process.env.JWT_SECRET as string) as JwtPayload
-    const user= await UserModel.findById(decoded._id)
+    console.log(decoded)
+    const user= await UserModel.findById(decoded.id)
     if(!user){
         res.status(404)
         throw new Error("User not found")

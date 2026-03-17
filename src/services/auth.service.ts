@@ -3,10 +3,13 @@ import {UserModel} from '../models/user'
 import { generateToken } from '../utils/generateToken';
 import bcrypt from 'bcryptjs'
 
+type UserRole= 'user' | 'admin';
+
 interface SignupInput{
     name:string;
     email:string;
-    password:string
+    password:string;
+    role:UserRole
 }
 
 interface LoginInput{
@@ -15,13 +18,14 @@ interface LoginInput{
 }
 
 export const signupUser= async(data:SignupInput)=>{
-    const {name,email,password}=data
+    const {name,email,password,role}=data
     const existingUser= await UserModel.findOne({email})
     if(existingUser) throw new Error("user already exists")
     const user=await UserModel.create({
         name,
         email,
-        password
+        password,
+        role
     })
 
     const token= generateToken(user._id.toString())

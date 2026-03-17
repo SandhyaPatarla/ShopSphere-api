@@ -6,5 +6,5 @@ export const errorHandler=(err:any,req:Request,res:Response,next:NextFunction)=>
         errorMessage:err.message || "Server Error"   
     
     })
-
+    next()
 }

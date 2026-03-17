@@ -53,8 +53,7 @@ const productSchema= new mongoose.Schema<IProduct>({
     },
     reviews:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'Review',
-        required:true,
+        ref:'Review'
     }],
     ratingsAverage:{
         type:Number,
