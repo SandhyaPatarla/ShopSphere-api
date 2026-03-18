@@ -5,13 +5,13 @@ import authRouter from './routes/auth.routes'
 import productRouter from './routes/product.routes'
 import categoryRouter from './routes/category.routes'
 import cartRoutes from './routes/cart.routes'
-import {createClient} from 'redis';
-import cluster, { worker } from 'cluster';
-import os from 'os'
+// import {createClient} from 'redis';
+// import cluster, { worker } from 'cluster';
+// import os from 'os'
 
 const app=express()
-const redis=createClient();
-redis.connect()
+// const redis=createClient();
+// redis.connect()
 
 app.use(cors())
 app.use(helmet())

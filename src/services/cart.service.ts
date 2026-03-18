@@ -35,7 +35,7 @@ export const updateCart= async(userid:any,productid:any,quantity:any)=>{
     const itemIndex= cart.items.findIndex((item:{product:any})=>item.product.toString()===productid)
     cart.items[itemIndex].quantity=quantity
     await cart.save()
-    return cart
+    return cart 
 }
 
 export const removeItem= async(userid:any, productid:any)=>{
