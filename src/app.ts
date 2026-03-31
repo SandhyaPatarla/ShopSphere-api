@@ -5,6 +5,7 @@ import authRouter from './routes/auth.routes'
 import productRouter from './routes/product.routes'
 import categoryRouter from './routes/category.routes'
 import cartRoutes from './routes/cart.routes'
+import orderRoutes from './routes/order.routes'
 // import {createClient} from 'redis';
 // import cluster, { worker } from 'cluster';
 // import os from 'os'
@@ -63,6 +64,22 @@ app.use(authRouter)
 app.use(productRouter)
 app.use(categoryRouter)
 app.use('/api/cart',cartRoutes)
+app.use(orderRoutes)
+
+type Users={
+    id:number,
+    name:string,
+    age:number
+}
+
+const users:Users[]=[
+    {id:1,name:"abc",age:2},
+    {id:2,name:"xyz",age:5}
+]
+
+app.get("/getUsers/:id",(req,res)=>{
+    res.send(users.filter((user)=>user.id.toString()==req.params.id))
+})
 
 export default app
 
