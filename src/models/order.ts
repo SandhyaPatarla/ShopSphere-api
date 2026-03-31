@@ -12,14 +12,19 @@ interface OrderI extends Document {
     user:mongoose.Types.ObjectId,
     items:OrderItemI[],
     totalPrice:number,
-    status: statusI
+    status: statusI,
+    stripePaymentIntentId:string | null
 }
 
 const orderSchema= new mongoose.Schema<OrderI>({
     user:{
         type:mongoose.Schema.Types.ObjectId,
         required:true,
-        unique:true
+        ref:"User"
+    },
+    stripePaymentIntentId:{
+        type:String,
+        default:null
     },
     items:[
         {
@@ -47,5 +52,7 @@ const orderSchema= new mongoose.Schema<OrderI>({
 },{
     timestamps:true
 })
+
+orderSchema.index({ user: 1, createdAt: -1 })
 
 export const OrderModel=mongoose.model("Order",orderSchema)

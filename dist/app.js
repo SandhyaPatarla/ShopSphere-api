@@ -1,0 +1,33 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const helmet_1 = __importDefault(require("helmet"));
+const cors_1 = __importDefault(require("cors"));
+const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const product_routes_1 = __importDefault(require("./routes/product.routes"));
+const category_routes_1 = __importDefault(require("./routes/category.routes"));
+const cart_routes_1 = __importDefault(require("./routes/cart.routes"));
+const order_routes_1 = __importDefault(require("./routes/order.routes"));
+const review_routes_1 = __importDefault(require("./routes/review.routes"));
+const stripe_webhook_routes_1 = __importDefault(require("./routes/stripe.webhook.routes"));
+const auth_middleware_1 = __importDefault(require("./middleware/auth.middleware"));
+const order_controller_1 = require("./controllers/order.controller");
+const error_middleware_1 = require("./middleware/error.middleware");
+const app = (0, express_1.default)();
+app.use((0, cors_1.default)());
+app.use((0, helmet_1.default)());
+app.use('/api/webhooks/stripe', express_1.default.raw({ type: 'application/json' }), stripe_webhook_routes_1.default);
+app.use(express_1.default.json());
+app.use(auth_routes_1.default);
+app.use(product_routes_1.default);
+app.use(category_routes_1.default);
+app.use('/api/cart', cart_routes_1.default);
+app.use('/api/orders', order_routes_1.default);
+app.use('/api/reviews', review_routes_1.default);
+/** @deprecated Prefer POST /api/orders/checkout */
+app.post('/orderCheckout', auth_middleware_1.default, order_controller_1.orderCheckoutController);
+app.use(error_middleware_1.errorHandler);
+exports.default = app;

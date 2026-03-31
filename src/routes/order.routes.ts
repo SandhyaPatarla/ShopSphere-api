@@ -1,9 +1,15 @@
-import express from "express"
-import auth from "../middleware/auth.middleware"
-import { orderCheckoutController } from "../controllers/order.controller"
+import express from 'express'
+import auth from '../middleware/auth.middleware'
+import {
+  getOrderByIdController,
+  listOrdersController,
+  orderCheckoutController
+} from '../controllers/order.controller'
 
-const router=express.Router()
+const router = express.Router()
 
-router.post('/orderCheckout',auth,orderCheckoutController)
+router.post('/checkout', auth, orderCheckoutController)
+router.get('/', auth, listOrdersController)
+router.get('/:id', auth, getOrderByIdController)
 
 export default router

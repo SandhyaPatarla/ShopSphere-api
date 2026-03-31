@@ -1,10 +1,8 @@
 import { Request, Response,NextFunction } from "express"
 
 export const errorHandler=(err:any,req:Request,res:Response,next:NextFunction)=>{
-    
-    res.status(res.statusCode).json({
-        errorMessage:err.message || "Server Error"   
-    
+    const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500
+    res.status(statusCode).json({
+        errorMessage: err.message || "Server Error"
     })
-    next()
 }

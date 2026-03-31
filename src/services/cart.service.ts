@@ -32,7 +32,13 @@ export const getCart = async(userid:any)=>{
 }
 export const updateCart= async(userid:any,productid:any,quantity:any)=>{
     const cart:any=await CartModel.findOne({user:userid})
+    if (!cart) {
+        throw new Error('Cart not found')
+    }
     const itemIndex= cart.items.findIndex((item:{product:any})=>item.product.toString()===productid)
+    if (itemIndex < 0) {
+        throw new Error('Product is not in cart')
+    }
     cart.items[itemIndex].quantity=quantity
     await cart.save()
     return cart 
@@ -40,6 +46,9 @@ export const updateCart= async(userid:any,productid:any,quantity:any)=>{
 
 export const removeItem= async(userid:any, productid:any)=>{
     let cart:any=await CartModel.findOne({user:userid})
+    if (!cart) {
+        throw new Error('Cart not found')
+    }
     cart.items= cart.items.filter((item:{product:any})=>item.product.toString()!=productid)
     await cart.save()
 }

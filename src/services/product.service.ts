@@ -46,13 +46,12 @@ import { ProductModel } from "../models/product"
 
 
 export const createProduct=async(data:any,id:any)=>{
-    return await ProductModel.insertOne({...data,createdBy:id});
-    
+    return await ProductModel.create({...data,createdBy:id})
 }
 
 export const getAllProducts=async(query:any)=>{
-    let page=query.page | 1;
-    let limit= query.limit | 10;
+    let page=Number(query.page) || 1;
+    let limit= Number(query.limit) || 10;
     let skip=(page-1) * limit
     let filter:any={}
     if(query.category){

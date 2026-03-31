@@ -5,8 +5,8 @@ import { isAdmin } from '../middleware/admin.middleware'
 const router=express.Router()
 
 router.post('/product',auth,isAdmin,create)
-router.get('/product',auth,getAll)
-router.get('/product/:id',auth,getById)
+router.get('/product',getAll)
+router.get('/product/:id',getById)
 router.put('/product/:id',auth,isAdmin,updateById)
 router.delete('/product/:id',auth,isAdmin,deleteById)
 
