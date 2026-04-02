@@ -8,11 +8,15 @@ exports.prepareOrderCheckout = prepareOrderCheckout;
 exports.orderCheckout = orderCheckout;
 exports.listOrdersForUser = listOrdersForUser;
 exports.getOrderByIdForRequester = getOrderByIdForRequester;
+exports.verifyRazorpayPaymentAndCompleteOrder = verifyRazorpayPaymentAndCompleteOrder;
 const mongoose_1 = __importDefault(require("mongoose"));
 const cart_1 = require("../models/cart");
 const order_1 = require("../models/order");
 const product_1 = require("../models/product");
-const stripe_1 = require("../config/stripe");
+const shop_1 = require("../config/shop");
+const razorpay_1 = require("../config/razorpay");
+const razorpay_order_completion_service_1 = require("./razorpay-order-completion.service");
+const razorpay_payment_verify_1 = require("../utils/razorpay-payment-verify");
 function cartLineQuantitySum(items) {
     return items.reduce((s, i) => s + (i.quantity || 0), 0);
 }
@@ -25,7 +29,7 @@ async function rollbackCheckoutOrder(orderId) {
     }
     await order_1.OrderModel.deleteOne({ _id: orderId });
 }
-/** Validates cart, decrements stock, creates pending order, returns Stripe client secret. Cart is cleared after successful payment (webhook). */
+/** Validates cart, decrements stock, creates pending order, creates Razorpay order. Cart is cleared after successful payment (webhook or POST /verify-payment). */
 async function prepareOrderCheckout(userId) {
     const session = await mongoose_1.default.startSession();
     let createdOrderId = null;
@@ -66,6 +70,7 @@ async function prepareOrderCheckout(userId) {
                 user: userId,
                 items: itemsPayload,
                 totalPrice,
+                currency: (0, shop_1.getShopCurrency)(),
                 status: 'pending'
             }
         ], { session });
@@ -83,31 +88,34 @@ async function prepareOrderCheckout(userId) {
     if (!order) {
         throw new Error('Order was not persisted');
     }
-    const currency = (process.env.STRIPE_CURRENCY || 'usd').toLowerCase();
-    const amountCents = Math.round(order.totalPrice * 100);
-    if (amountCents < 50) {
+    const currency = (0, shop_1.getShopCurrency)();
+    const amountPaise = Math.round(order.totalPrice * 100);
+    if (amountPaise < 100) {
         await rollbackCheckoutOrder(order._id);
-        throw new Error('Order total is below the minimum charge amount for this currency (Stripe test: use at least $0.50 USD total)');
+        throw new Error('Order total must be at least ₹1 INR (100 paise) for Razorpay');
     }
     try {
-        const stripe = (0, stripe_1.getStripe)();
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amountCents,
+        const rzp = (0, razorpay_1.getRazorpay)();
+        const receipt = `rcp_${order._id.toString()}`.slice(0, 40);
+        const rzpOrder = await rzp.orders.create({
+            amount: amountPaise,
             currency,
-            metadata: {
+            receipt,
+            notes: {
                 orderId: order._id.toString(),
                 userId: userId.toString()
-            },
-            automatic_payment_methods: { enabled: true }
+            }
         });
         await order_1.OrderModel.findByIdAndUpdate(order._id, {
-            stripePaymentIntentId: paymentIntent.id
+            razorpayOrderId: rzpOrder.id
         });
         const updatedOrder = await order_1.OrderModel.findById(order._id).populate('items.product');
         return {
             order: updatedOrder,
-            clientSecret: paymentIntent.client_secret,
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ''
+            razorpayOrderId: rzpOrder.id,
+            keyId: process.env.RAZORPAY_KEY_ID || '',
+            amount: amountPaise,
+            currency
         };
     }
     catch (e) {
@@ -130,4 +138,48 @@ async function getOrderByIdForRequester(orderId, userId, isAdmin) {
         filter.user = userId;
     }
     return order_1.OrderModel.findOne(filter).populate('items.product');
+}
+/**
+ * Verifies Checkout success using Razorpay signature (HMAC with Key Secret) and API payment status,
+ * then marks the order paid. Use when webhooks are not configured (e.g. local demo).
+ */
+async function verifyRazorpayPaymentAndCompleteOrder(userId, body) {
+    const keySecret = (0, razorpay_1.getRazorpayKeySecret)();
+    const valid = (0, razorpay_payment_verify_1.validatePaymentVerification)({
+        order_id: body.razorpay_order_id,
+        payment_id: body.razorpay_payment_id
+    }, body.razorpay_signature, keySecret);
+    if (!valid) {
+        throw new Error('Invalid Razorpay payment signature');
+    }
+    const rzp = (0, razorpay_1.getRazorpay)();
+    const payment = await rzp.payments.fetch(body.razorpay_payment_id);
+    if (payment.order_id != null && payment.order_id !== body.razorpay_order_id) {
+        throw new Error('Payment does not match this order');
+    }
+    const status = payment.status;
+    if (status !== 'captured' && status !== 'authorized') {
+        throw new Error(`Payment not successful (status: ${status ?? 'unknown'})`);
+    }
+    const order = await order_1.OrderModel.findOne({
+        user: userId,
+        razorpayOrderId: body.razorpay_order_id
+    });
+    if (!order) {
+        throw new Error('Order not found or does not belong to this user');
+    }
+    if (order.status === 'paid') {
+        return order_1.OrderModel.findById(order._id).populate('items.product');
+    }
+    if (order.status !== 'pending') {
+        throw new Error('Order cannot be paid in its current state');
+    }
+    const result = await (0, razorpay_order_completion_service_1.markOrderPaidAfterCapture)(body.razorpay_order_id, body.razorpay_payment_id);
+    if (result.updated) {
+        return order_1.OrderModel.findById(result.orderId).populate('items.product');
+    }
+    if (result.orderId) {
+        return order_1.OrderModel.findById(result.orderId).populate('items.product');
+    }
+    throw new Error('Could not complete order');
 }

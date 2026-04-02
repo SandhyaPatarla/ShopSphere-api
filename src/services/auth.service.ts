@@ -33,6 +33,7 @@ export const signupUser= async(data:SignupInput)=>{
         _id:user._id,
         name:user.name,
         email:user.email,
+        role:user.role,
         token:token
     })
 }
@@ -54,6 +55,7 @@ export const loginUser = async(data:LoginInput,res:Response)=>{
         _id:user._id,
         name:user.name,
         email:user.email,
+        role:user.role,
         token:token
     })
 }

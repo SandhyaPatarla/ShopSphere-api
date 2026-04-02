@@ -11,7 +11,11 @@ const orderSchema = new mongoose_1.default.Schema({
         required: true,
         ref: "User"
     },
-    stripePaymentIntentId: {
+    razorpayOrderId: {
+        type: String,
+        default: null
+    },
+    razorpayPaymentId: {
         type: String,
         default: null
     },
@@ -32,6 +36,11 @@ const orderSchema = new mongoose_1.default.Schema({
     totalPrice: {
         type: Number,
         required: true
+    },
+    currency: {
+        type: String,
+        default: 'INR',
+        enum: ['INR']
     },
     status: {
         type: String,

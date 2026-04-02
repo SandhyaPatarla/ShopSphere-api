@@ -8,6 +8,7 @@ const auth_middleware_1 = __importDefault(require("../middleware/auth.middleware
 const order_controller_1 = require("../controllers/order.controller");
 const router = express_1.default.Router();
 router.post('/checkout', auth_middleware_1.default, order_controller_1.orderCheckoutController);
+router.post('/verify-payment', auth_middleware_1.default, order_controller_1.verifyRazorpayPaymentController);
 router.get('/', auth_middleware_1.default, order_controller_1.listOrdersController);
 router.get('/:id', auth_middleware_1.default, order_controller_1.getOrderByIdController);
 exports.default = router;

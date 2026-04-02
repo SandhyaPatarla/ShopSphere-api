@@ -4,7 +4,10 @@ import mongoose from "mongoose";
 interface IProduct extends Document{
     name:string;
     description:string;
+    /** Unit price in INR (Indian Rupees), not USD */
     price:number;
+    /** ISO 4217; shop uses INR only (may be absent on legacy documents) */
+    currency?: string;
     stock:number;
     category:mongoose.Types.ObjectId;
     images:string[];
@@ -32,6 +35,11 @@ const productSchema= new mongoose.Schema<IProduct>({
         type:Number,
         required:true,
         min:0
+    },
+    currency:{
+        type:String,
+        default:'INR',
+        enum:['INR']
     },
     stock:{
         type:Number,

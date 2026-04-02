@@ -46,7 +46,7 @@ import { ProductModel } from "../models/product"
 
 
 export const createProduct=async(data:any,id:any)=>{
-    return await ProductModel.create({...data,createdBy:id})
+    return await ProductModel.create({ ...data, currency: 'INR', createdBy: id })
 }
 
 export const getAllProducts=async(query:any)=>{
@@ -82,7 +82,7 @@ export const getProductById=async(id:any)=>{
 }
 
 export const updateProductById= async(id:any,data:any)=>{
-    return await ProductModel.findByIdAndUpdate(id,data,{new:true})
+    return await ProductModel.findByIdAndUpdate(id, { ...data, currency: 'INR' }, { new: true })
 }
 
 export const deleteProductById= async(id:any)=>{

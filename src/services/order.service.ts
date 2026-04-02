@@ -2,7 +2,10 @@ import mongoose from 'mongoose'
 import { CartModel } from '../models/cart'
 import { OrderModel } from '../models/order'
 import { ProductModel } from '../models/product'
-import { getStripe } from '../config/stripe'
+import { getShopCurrency } from '../config/shop'
+import { getRazorpay, getRazorpayKeySecret } from '../config/razorpay'
+import { markOrderPaidAfterCapture } from './razorpay-order-completion.service'
+import { validatePaymentVerification } from '../utils/razorpay-payment-verify'
 
 function cartLineQuantitySum(items: { quantity: number }[]): number {
   return items.reduce((s, i) => s + (i.quantity || 0), 0)
@@ -20,7 +23,7 @@ export async function rollbackCheckoutOrder(orderId: mongoose.Types.ObjectId): P
   await OrderModel.deleteOne({ _id: orderId })
 }
 
-/** Validates cart, decrements stock, creates pending order, returns Stripe client secret. Cart is cleared after successful payment (webhook). */
+/** Validates cart, decrements stock, creates pending order, creates Razorpay order. Cart is cleared after successful payment (webhook or POST /verify-payment). */
 export async function prepareOrderCheckout(userId: mongoose.Types.ObjectId) {
   const session = await mongoose.startSession()
   let createdOrderId: mongoose.Types.ObjectId | null = null
@@ -73,6 +76,7 @@ export async function prepareOrderCheckout(userId: mongoose.Types.ObjectId) {
           user: userId,
           items: itemsPayload,
           totalPrice,
+          currency: getShopCurrency(),
           status: 'pending' as const
         }
       ],
@@ -93,37 +97,38 @@ export async function prepareOrderCheckout(userId: mongoose.Types.ObjectId) {
     throw new Error('Order was not persisted')
   }
 
-  const currency = (process.env.STRIPE_CURRENCY || 'usd').toLowerCase()
-  const amountCents = Math.round(order.totalPrice * 100)
-  if (amountCents < 50) {
+  const currency = getShopCurrency()
+  const amountPaise = Math.round(order.totalPrice * 100)
+  if (amountPaise < 100) {
     await rollbackCheckoutOrder(order._id as mongoose.Types.ObjectId)
-    throw new Error(
-      'Order total is below the minimum charge amount for this currency (Stripe test: use at least $0.50 USD total)'
-    )
+    throw new Error('Order total must be at least ₹1 INR (100 paise) for Razorpay')
   }
 
   try {
-    const stripe = getStripe()
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
+    const rzp = getRazorpay()
+    const receipt = `rcp_${order._id.toString()}`.slice(0, 40)
+    const rzpOrder = await rzp.orders.create({
+      amount: amountPaise,
       currency,
-      metadata: {
+      receipt,
+      notes: {
         orderId: order._id.toString(),
         userId: userId.toString()
-      },
-      automatic_payment_methods: { enabled: true }
+      }
     })
 
     await OrderModel.findByIdAndUpdate(order._id, {
-      stripePaymentIntentId: paymentIntent.id
+      razorpayOrderId: rzpOrder.id
     })
 
     const updatedOrder = await OrderModel.findById(order._id).populate('items.product')
 
     return {
       order: updatedOrder,
-      clientSecret: paymentIntent.client_secret,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || ''
+      razorpayOrderId: rzpOrder.id,
+      keyId: process.env.RAZORPAY_KEY_ID || '',
+      amount: amountPaise,
+      currency
     }
   } catch (e) {
     await rollbackCheckoutOrder(order._id as mongoose.Types.ObjectId)
@@ -152,4 +157,75 @@ export async function getOrderByIdForRequester(
     filter.user = userId
   }
   return OrderModel.findOne(filter).populate('items.product')
+}
+
+export type RazorpayVerifyPaymentBody = {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
+}
+
+/**
+ * Verifies Checkout success using Razorpay signature (HMAC with Key Secret) and API payment status,
+ * then marks the order paid. Use when webhooks are not configured (e.g. local demo).
+ */
+export async function verifyRazorpayPaymentAndCompleteOrder(
+  userId: mongoose.Types.ObjectId,
+  body: RazorpayVerifyPaymentBody
+) {
+  const keySecret = getRazorpayKeySecret()
+
+  const valid = validatePaymentVerification(
+    {
+      order_id: body.razorpay_order_id,
+      payment_id: body.razorpay_payment_id
+    },
+    body.razorpay_signature,
+    keySecret
+  )
+
+  if (!valid) {
+    throw new Error('Invalid Razorpay payment signature')
+  }
+
+  const rzp = getRazorpay()
+  const payment = await rzp.payments.fetch(body.razorpay_payment_id)
+
+  if (payment.order_id != null && payment.order_id !== body.razorpay_order_id) {
+    throw new Error('Payment does not match this order')
+  }
+
+  const status = payment.status
+  if (status !== 'captured' && status !== 'authorized') {
+    throw new Error(`Payment not successful (status: ${status ?? 'unknown'})`)
+  }
+
+  const order = await OrderModel.findOne({
+    user: userId,
+    razorpayOrderId: body.razorpay_order_id
+  })
+
+  if (!order) {
+    throw new Error('Order not found or does not belong to this user')
+  }
+
+  if (order.status === 'paid') {
+    return OrderModel.findById(order._id).populate('items.product')
+  }
+
+  if (order.status !== 'pending') {
+    throw new Error('Order cannot be paid in its current state')
+  }
+
+  const result = await markOrderPaidAfterCapture(body.razorpay_order_id, body.razorpay_payment_id)
+
+  if (result.updated) {
+    return OrderModel.findById(result.orderId).populate('items.product')
+  }
+
+  if (result.orderId) {
+    return OrderModel.findById(result.orderId).populate('items.product')
+  }
+
+  throw new Error('Could not complete order')
 }

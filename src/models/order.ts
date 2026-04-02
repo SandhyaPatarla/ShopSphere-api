@@ -3,6 +3,7 @@ import mongoose , {Document}from "mongoose";
 interface OrderItemI{
     product:mongoose.Types.ObjectId,
     quantity:number,
+    /** Line price in INR at checkout */
     price:number
 }
 
@@ -11,9 +12,13 @@ type statusI= "pending" | "paid" | "shipped" | "delivered"
 interface OrderI extends Document {
     user:mongoose.Types.ObjectId,
     items:OrderItemI[],
+    /** Sum of line totals in INR */
     totalPrice:number,
+    /** ISO 4217; matches Razorpay (INR); may be absent on legacy documents */
+    currency?: string,
     status: statusI,
-    stripePaymentIntentId:string | null
+    razorpayOrderId: string | null,
+    razorpayPaymentId: string | null,
 }
 
 const orderSchema= new mongoose.Schema<OrderI>({
@@ -22,7 +27,11 @@ const orderSchema= new mongoose.Schema<OrderI>({
         required:true,
         ref:"User"
     },
-    stripePaymentIntentId:{
+    razorpayOrderId:{
+        type:String,
+        default:null
+    },
+    razorpayPaymentId:{
         type:String,
         default:null
     },
@@ -43,6 +52,11 @@ const orderSchema= new mongoose.Schema<OrderI>({
     totalPrice:{
         type:Number,
         required:true
+    },
+    currency:{
+        type:String,
+        default:'INR',
+        enum:['INR']
     },
     status:{
         type:String,

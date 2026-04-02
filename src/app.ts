@@ -7,7 +7,7 @@ import categoryRouter from './routes/category.routes'
 import cartRoutes from './routes/cart.routes'
 import orderRoutes from './routes/order.routes'
 import reviewRoutes from './routes/review.routes'
-import stripeWebhookRoutes from './routes/stripe.webhook.routes'
+import razorpayWebhookRoutes from './routes/razorpay.webhook.routes'
 import auth from './middleware/auth.middleware'
 import { orderCheckoutController } from './controllers/order.controller'
 import { errorHandler } from './middleware/error.middleware'
@@ -17,7 +17,7 @@ const app = express()
 app.use(cors())
 app.use(helmet())
 
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRoutes)
+app.use('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), razorpayWebhookRoutes)
 
 app.use(express.json())
 

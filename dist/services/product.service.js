@@ -41,7 +41,7 @@ const product_1 = require("../models/product");
 //     return await ProductModel.findByIdAndDelete(id)
 // }
 const createProduct = async (data, id) => {
-    return await product_1.ProductModel.create({ ...data, createdBy: id });
+    return await product_1.ProductModel.create({ ...data, currency: 'INR', createdBy: id });
 };
 exports.createProduct = createProduct;
 const getAllProducts = async (query) => {
@@ -78,7 +78,7 @@ const getProductById = async (id) => {
 };
 exports.getProductById = getProductById;
 const updateProductById = async (id, data) => {
-    return await product_1.ProductModel.findByIdAndUpdate(id, data, { new: true });
+    return await product_1.ProductModel.findByIdAndUpdate(id, { ...data, currency: 'INR' }, { new: true });
 };
 exports.updateProductById = updateProductById;
 const deleteProductById = async (id) => {

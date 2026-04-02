@@ -21,6 +21,11 @@ const productSchema = new mongoose_1.default.Schema({
         required: true,
         min: 0
     },
+    currency: {
+        type: String,
+        default: 'INR',
+        enum: ['INR']
+    },
     stock: {
         type: Number,
         required: true,
